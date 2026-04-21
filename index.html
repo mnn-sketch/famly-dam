@@ -47,7 +47,7 @@
     display: flex; align-items: center; gap: 10px;
   }
   .brand img {
-    height: 24px; width: auto; display: block;
+    height: 54px; width: auto; display: block;
   }
   .brand-label {
     font-weight: 600; font-size: 13px; color: var(--muted); letter-spacing: 0.01em;
@@ -105,6 +105,19 @@
   .chip.active { background: var(--chip-active-bg); color: var(--chip-active-ink); }
   .chip .x { opacity: 0.6; margin-left: 4px; }
 
+  .quick-filters {
+    display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 10px;
+  }
+  .quick-chip {
+    padding: 7px 16px; border-radius: 999px;
+    background: var(--chip-bg); color: var(--chip-ink);
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    user-select: none; border: 1.5px solid transparent;
+    white-space: nowrap;
+    transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+  }
+  .quick-chip:hover { background: var(--accent-soft); border-color: var(--accent-soft); }
+  .quick-chip.active { background: var(--chip-active-bg); color: var(--chip-active-ink); border-color: var(--chip-active-bg); }
   .group-label {
     font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em;
     color: var(--muted); margin: 10px 0 4px;
@@ -243,6 +256,8 @@
 </header>
 
 <main>
+  <div class="quick-filters" id="quickFilters"></div>
+
   <div id="tagsWrap">
     <div class="group-label">Top tags</div>
     <div id="tagChips" class="filters"></div>
@@ -350,6 +365,32 @@ const META_TAGS = new Set(["product-app", "people-environments", "customer-visit
   "famly-in-the-wild", "internal", "raw-dont-use", "unedited", "hires-print",
   "uk", "dach", "us", "dk", "au", "nl", "se", "no", "de", "fr", "context"]);
 
+// Always-on quick filter tags
+const QUICK_FILTERS = [
+  { label: "Children",      tag: "children" },
+  { label: "Educator",      tag: "educator" },
+  { label: "Parent",        tag: "parent" },
+  { label: "Tablet",        tag: "tablet" },
+  { label: "Phone",         tag: "phone" },
+  { label: "Nursery",       tag: "nursery" },
+  { label: "Outdoors",      tag: "outdoor" },
+  { label: "Illustrations", tag: "illustrations" },
+  { label: "Events",        tag: "famly-in-the-wild" },
+];
+
+function renderQuickFilters() {
+  const wrap = $("#quickFilters");
+  wrap.innerHTML = "";
+  QUICK_FILTERS.forEach(({ label, tag }) => {
+    const c = document.createElement("div");
+    c.className = "quick-chip" + (activeTags.has(tag) ? " active" : "");
+    c.textContent = label;
+    c.dataset.tag = tag;
+    c.addEventListener("click", () => toggleTag(tag));
+    wrap.appendChild(c);
+  });
+}
+
 function populateControls() {
   const types = new Set();
   const folders = new Set();
@@ -394,6 +435,7 @@ function renderTagChipsActive() {
   $$("#tagChips .chip").forEach(c => {
     c.classList.toggle("active", activeTags.has(c.dataset.tag));
   });
+  $$("#quickFilters .quick-chip").forEach(c => c.classList.toggle("active", activeTags.has(c.dataset.tag)));
 }
 
 function applyFilters() {
