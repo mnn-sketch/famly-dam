@@ -63,12 +63,16 @@
   .pat-box .pat-actions{display:flex;gap:8px;justify-content:flex-end;}
 
   main{max-width:1400px;margin:0 auto;padding:18px 20px 80px;}
-  .quick-filters{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 18px;}
-  .quick-chip{padding:7px 16px;border-radius:999px;background:var(--chip-bg);color:var(--chip-ink);font-size:13px;font-weight:600;cursor:pointer;user-select:none;border:1.5px solid transparent;white-space:nowrap;transition:background 120ms ease,color 120ms ease,border-color 120ms ease;}
+  .type-toggle{display:flex;gap:8px;margin:0 0 20px;}
+  .type-btn{padding:9px 24px;border-radius:999px;border:1.5px solid var(--line);background:#fff;color:var(--ink);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:all 120ms ease;}
+  .type-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .type-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+  .quick-chip{padding:6px 14px;border-radius:999px;background:var(--chip-bg);color:var(--chip-ink);font-size:13px;font-weight:700;cursor:pointer;user-select:none;border:1.5px solid var(--line);white-space:nowrap;transition:background 120ms ease,color 120ms ease,border-color 120ms ease;}
   .quick-chip:hover{background:var(--accent-soft);border-color:var(--accent-soft);}
   .quick-chip.active{background:var(--chip-active-bg);color:var(--chip-active-ink);border-color:var(--chip-active-bg);}
   .filters{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 18px;}
   .chip{padding:5px 11px;border-radius:999px;background:var(--chip-bg);color:var(--chip-ink);font-size:12px;cursor:pointer;user-select:none;border:1px solid transparent;white-space:nowrap;font-weight:500;transition:background 120ms ease,color 120ms ease;}
+  .chip-key{padding:7px 16px;font-size:14px;font-weight:700;border:1.5px solid transparent;}
   .chip:hover{background:var(--accent-soft);}
   .chip.active{background:var(--chip-active-bg);color:var(--chip-active-ink);}
   .group-label{font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin:10px 0 4px;}
@@ -142,8 +146,6 @@
       <input id="q" type="search" placeholder="Search name, tag, note…" autocomplete="off" />
     </div>
     <div class="controls">
-      <select id="filterFolder" title="Category"><option value="">All categories</option></select>
-      <select id="filterMarket" title="Market"><option value="">All markets</option></select>
       <select id="sort" title="Sort by">
         <option value="date_desc">Newest first</option>
         <option value="date_asc">Oldest first</option>
@@ -180,9 +182,12 @@
 </div>
 
 <main>
-  <div class="quick-filters" id="quickFilters"></div>
+  <div class="type-toggle">
+    <button class="type-btn" id="btnPhotos">Photos</button>
+    <button class="type-btn" id="btnIllustrations">Illustrations</button>
+  </div>
   <div id="tagsWrap">
-    <div class="group-label">Top tags</div>
+    <div class="group-label">Tags</div>
     <div id="tagChips" class="filters"></div>
   </div>
   <div id="result"></div>
@@ -209,7 +214,7 @@
 
 <script>
 const GITHUB_OWNER="mnn-sketch",GITHUB_REPO="famly-dam",GITHUB_FILE="image_bank_index.csv";
-let rows=[],filtered=[],activeTags=new Set(),view="grid",editMode=false,dirty=false,fileSha="";
+let rows=[],filtered=[],activeTags=new Set(),view="grid",editMode=false,dirty=false,fileSha="",typeFilter="";
 const $=s=>document.querySelector(s);
 const $$=s=>document.querySelectorAll(s);
 
@@ -250,49 +255,46 @@ const QUICK_FILTERS=[
   {label:"Children",tag:"children"},{label:"Educator",tag:"educator"},
   {label:"Tablet",tag:"tablet"},{label:"Phone",tag:"phone"},
   {label:"Nursery",tag:"nursery"},{label:"Outdoors",tag:"outdoor"},
-  {label:"Illustrations",tag:"illustrations"},{label:"Events",tag:"famly-in-the-wild"},
+{label:"Events",tag:"famly-in-the-wild"},
 ];
 
 function renderQuickFilters(){
-  const wrap=$("#quickFilters");wrap.innerHTML="";
+  // Quick chips are rendered as part of tagChips in populateControls
+}
+
+function populateControls(){
+  const tagCount=new Map();
+  rows.forEach(r=>{
+    r.tags.forEach(t=>{if(!META_TAGS.has(t))tagCount.set(t,(tagCount.get(t)||0)+1);});
+  });
+  const top=[...tagCount.entries()].sort((a,b)=>b[1]-a[1]).slice(0,24);
+  const wrap=$("#tagChips");wrap.innerHTML="";
+  // Render key tags first (larger, bolder)
   QUICK_FILTERS.forEach(({label,tag})=>{
     const c=document.createElement("div");
-    c.className="quick-chip"+(activeTags.has(tag)?" active":"");
+    c.className="chip chip-key"+(activeTags.has(tag)?" active":"");
     c.textContent=label;c.dataset.tag=tag;
     c.addEventListener("click",()=>toggleTag(tag));
     wrap.appendChild(c);
   });
-}
-
-function populateControls(){
-  const folders=new Set(),markets=new Set(),tagCount=new Map();
-  rows.forEach(r=>{
-    const f=folderOf(r.tags);if(f)folders.add(f);
-    r.tags.forEach(t=>{if(MARKET_TAGS.includes(t))markets.add(t);if(!META_TAGS.has(t))tagCount.set(t,(tagCount.get(t)||0)+1);});
+  // Then regular top tags
+  top.forEach(([t,n])=>{
+    if(QUICK_FILTERS.some(q=>q.tag===t))return; // skip if already shown as key tag
+    const c=document.createElement("div");c.className="chip";c.textContent=`${t} · ${n}`;c.dataset.tag=t;c.addEventListener("click",()=>toggleTag(t));wrap.appendChild(c);
   });
-  const fs=$("#filterFolder");
-  [...folders].sort().forEach(f=>{const o=document.createElement("option");o.value=f;o.textContent=prettyFolder(f);fs.appendChild(o);});
-  const ml={uk:"🇬🇧 UK",dach:"🇩🇪 DACH",us:"🇺🇸 US",dk:"🇩🇰 Denmark",de:"🇩🇪 Germany"};
-  const ms=$("#filterMarket");
-  [...markets].sort().forEach(m=>{const o=document.createElement("option");o.value=m;o.textContent=ml[m]||m.toUpperCase();ms.appendChild(o);});
-  renderQuickFilters();
-  const top=[...tagCount.entries()].sort((a,b)=>b[1]-a[1]).slice(0,24);
-  const wrap=$("#tagChips");wrap.innerHTML="";
-  top.forEach(([t,n])=>{const c=document.createElement("div");c.className="chip";c.textContent=`${t} · ${n}`;c.dataset.tag=t;c.addEventListener("click",()=>toggleTag(t));wrap.appendChild(c);});
 }
 
 function toggleTag(t){if(activeTags.has(t))activeTags.delete(t);else activeTags.add(t);renderTagChipsActive();applyFilters();}
 function renderTagChipsActive(){
-  $$(".chip").forEach(c=>c.classList.toggle("active",activeTags.has(c.dataset.tag)));
-  $$("#quickFilters .quick-chip").forEach(c=>c.classList.toggle("active",activeTags.has(c.dataset.tag)));
+  $$("#tagChips .chip, #tagChips .quick-chip").forEach(c=>c.classList.toggle("active",activeTags.has(c.dataset.tag)));
 }
 
 function applyFilters(){
-  const q=$("#q").value.trim().toLowerCase(),folder=$("#filterFolder").value,market=$("#filterMarket").value,sort=$("#sort").value;
+  const q=$("#q").value.trim().toLowerCase(),sort=$("#sort").value;
   filtered=rows.filter(r=>{
     if(r._hidden&&!editMode)return false;
-    if(folder&&folderOf(r.tags)!==folder)return false;
-    if(market&&!r.tags.includes(market))return false;
+    if(typeFilter==="photos"&&r.tags.includes("illustrations"))return false;
+    if(typeFilter==="illustrations"&&!r.tags.includes("illustrations"))return false;
     if(activeTags.size){for(const t of activeTags)if(!r.tags.includes(t))return false;}
     if(q){const hay=(r.name+" "+r.note+" "+r.tags.join(" ")).toLowerCase();if(!hay.includes(q))return false;}
     return true;
@@ -477,12 +479,22 @@ let toastTimer;
 function showToast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove("show"),4000);}
 
 $("#q").addEventListener("input",debounce(applyFilters,150));
-$("#filterFolder").addEventListener("change",applyFilters);
-$("#filterMarket").addEventListener("change",applyFilters);
 $("#sort").addEventListener("change",applyFilters);
-$("#clear").addEventListener("click",()=>{$("#q").value="";$("#filterFolder").value="";$("#filterMarket").value="";$("#sort").value="date_desc";activeTags.clear();renderTagChipsActive();applyFilters();});
+$("#clear").addEventListener("click",()=>{$("#q").value="";$("#sort").value="date_desc";typeFilter="";$$(".type-btn").forEach(b=>b.classList.remove("active"));activeTags.clear();renderTagChipsActive();applyFilters();});
 $("#viewGrid").addEventListener("click",()=>{view="grid";$("#viewGrid").classList.add("on");$("#viewList").classList.remove("on");render();});
 $("#viewList").addEventListener("click",()=>{view="list";$("#viewList").classList.add("on");$("#viewGrid").classList.remove("on");render();});
+$("#btnPhotos").addEventListener("click",()=>{
+  typeFilter=typeFilter==="photos"?"":"photos";
+  $("#btnPhotos").classList.toggle("active",typeFilter==="photos");
+  $("#btnIllustrations").classList.remove("active");
+  applyFilters();
+});
+$("#btnIllustrations").addEventListener("click",()=>{
+  typeFilter=typeFilter==="illustrations"?"":"illustrations";
+  $("#btnIllustrations").classList.toggle("active",typeFilter==="illustrations");
+  $("#btnPhotos").classList.remove("active");
+  applyFilters();
+});
 function debounce(fn,ms){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};}
 
 init();
