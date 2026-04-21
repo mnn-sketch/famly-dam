@@ -221,6 +221,7 @@
     <div class="controls">
       <select id="filterType" title="File type"><option value="">All types</option></select>
       <select id="filterFolder" title="Folder"><option value="">All folders</option></select>
+      <select id="filterMarket" title="Market"><option value="">All markets</option></select>
       <select id="sort" title="Sort by">
         <option value="date_desc">Newest first</option>
         <option value="date_asc">Oldest first</option>
@@ -265,7 +266,7 @@
 <script>
 // ---- Config ----------------------------------------------------------------
 // Published-to-web CSV URL of the Google Sheet.
-const REMOTE_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRNDMXo4nJS0YeYqTbbF30fkH8NYJMc3_amo6QRb4szbVMII4ii4bXiDWC-MTIM3b1EjeOM4he0T8mo/pub?output=csv";
+const REMOTE_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRftZLXVKKLH3dxAQx6RhY-q4ay_AUqmR_xJU-L0zd7f624o_grrYTT03XwiluXGt42p-QrlqmcwvJS/pub?output=csv";
 
 // ---- State -----------------------------------------------------------------
 let rows = [];
@@ -309,7 +310,7 @@ async function init() {
       uploader: r.uploader || "",
       date: r.date || "",
       link: r.link || "",
-      thumbnail: r.thumbnail || "",
+      thumbnail: r.thumbnail ? r.thumbnail.trim() : "",
       note: r.note || "",
     }));
   populateControls();
@@ -337,25 +338,41 @@ function prettyFolder(slug) {
   return slug.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
 }
 
+// Known market/region tags used as filter values
+const MARKET_TAGS = ["uk", "dach", "us", "dk", "au", "nl", "se", "no", "de", "fr"];
+// Tags that are structural/meta — excluded from the content tag chips
+const META_TAGS = new Set(["product-app", "people-environments", "customer-visits", "illustrations",
+  "famly-in-the-wild", "internal", "raw-dont-use", "unedited", "hires-print",
+  "uk", "dach", "us", "dk", "au", "nl", "se", "no", "de", "fr", "context"]);
+
 function populateControls() {
   const types = new Set();
   const folders = new Set();
+  const markets = new Set();
   const tagCount = new Map();
   rows.forEach(r => {
     if (r.type) types.add(r.type);
     const f = folderOf(r.tags);
     if (f) folders.add(f);
-    r.tags.forEach(t => tagCount.set(t, (tagCount.get(t) || 0) + 1));
+    r.tags.forEach(t => {
+      if (MARKET_TAGS.includes(t)) markets.add(t);
+      if (!META_TAGS.has(t)) tagCount.set(t, (tagCount.get(t) || 0) + 1);
+    });
   });
   const typeSel = $("#filterType");
   [...types].sort().forEach(t => {
-    const o = document.createElement("option"); o.value = t; o.textContent = t; typeSel.appendChild(o);
+    const o = document.createElement("option"); o.value = t; o.textContent = t.toUpperCase(); typeSel.appendChild(o);
   });
   const folderSel = $("#filterFolder");
   [...folders].sort().forEach(f => {
     const o = document.createElement("option"); o.value = f; o.textContent = prettyFolder(f); folderSel.appendChild(o);
   });
-  // top 24 tags
+  const marketLabels = { uk: "🇬🇧 UK", dach: "🇩🇪 DACH", us: "🇺🇸 US", dk: "🇩🇰 Denmark", au: "🇦🇺 Australia", nl: "🇳🇱 Netherlands", se: "🇸🇪 Sweden", no: "🇳🇴 Norway" };
+  const marketSel = $("#filterMarket");
+  [...markets].sort().forEach(m => {
+    const o = document.createElement("option"); o.value = m; o.textContent = marketLabels[m] || m.toUpperCase(); marketSel.appendChild(o);
+  });
+  // top 24 content tags (meta tags excluded)
   const top = [...tagCount.entries()].sort((a,b) => b[1]-a[1]).slice(0, 24);
   const wrap = $("#tagChips"); wrap.innerHTML = "";
   top.forEach(([t, n]) => {
@@ -382,16 +399,18 @@ function applyFilters() {
   const q = $("#q").value.trim().toLowerCase();
   const type = $("#filterType").value;
   const folder = $("#filterFolder").value;
+  const market = $("#filterMarket").value;
   const sort = $("#sort").value;
 
   filtered = rows.filter(r => {
     if (type && r.type !== type) return false;
     if (folder && folderOf(r.tags) !== folder) return false;
+    if (market && !r.tags.includes(market)) return false;
     if (activeTags.size) {
       for (const t of activeTags) if (!r.tags.includes(t)) return false;
     }
     if (q) {
-      const hay = (r.name + " " + r.note + " " + r.tags.join(" ") + " " + r.uploader).toLowerCase();
+      const hay = (r.name + " " + r.note + " " + r.tags.join(" ")).toLowerCase();
       if (!hay.includes(q)) return false;
     }
     return true;
@@ -452,10 +471,9 @@ function cardEl(r) {
         : `<div class="fallback">no preview</div>`}
     </div>
     <div class="card-body">
-      <div class="name" title="${escapeHtml(r.name)}">${escapeHtml(truncate(r.name, 70))}</div>
+      <div class="name" title="${escapeHtml(r.name)}">${escapeHtml(truncate(prettyName(r.name), 70))}</div>
       <div class="meta">
         ${r.date ? `<span>${r.date}</span>` : ""}
-        ${r.uploader ? `<span>· ${escapeHtml(r.uploader)}</span>` : ""}
       </div>
       <div class="tags">${r.tags.slice(0,4).map(t => `<span class="tag" data-tag="${escapeHtml(t)}">${escapeHtml(t)}</span>`).join("")}</div>
     </div>
@@ -485,8 +503,8 @@ function renderList(root) {
         ? `<img loading="lazy" referrerpolicy="no-referrer" src="${r.thumbnail}" alt="" />`
         : `<div style="width:64px;height:48px;background:#eee;border-radius:6px;"></div>`}
       <div>
-        <div class="name">${escapeHtml(truncate(r.name, 90))}</div>
-        <div class="meta">${escapeHtml(r.type)}${r.uploader ? " · " + escapeHtml(r.uploader) : ""}</div>
+        <div class="name">${escapeHtml(truncate(prettyName(r.name), 90))}</div>
+        <div class="meta">${escapeHtml(r.type.toUpperCase())}</div>
       </div>
       <div class="meta">${r.tags.slice(0,3).map(escapeHtml).join(", ")}</div>
       <div class="date meta">${r.date || ""}</div>
@@ -506,10 +524,10 @@ function renderList(root) {
 // ---- Modal -----------------------------------------------------------------
 function openModal(r) {
   $("#modalHero").innerHTML = r.thumbnail
-    ? `<img referrerpolicy="no-referrer" src="${r.thumbnail.replace(/sz=w\d+/, "sz=w1600")}" alt="" />`
+    ? `<img referrerpolicy="no-referrer" src="${r.thumbnail.replace(/sz=w\d+/, "sz=w1200")}" alt="" />`
     : `<div style="color:#888; padding:40px;">no preview</div>`;
-  $("#modalName").textContent = r.name;
-  const meta = [r.type, r.date, r.uploader].filter(Boolean).join(" · ");
+  $("#modalName").textContent = prettyName(r.name);
+  const meta = [r.type ? r.type.toUpperCase() : "", r.date].filter(Boolean).join(" · ");
   $("#modalMeta").textContent = meta + (r.note ? ` — ${r.note}` : "");
   $("#modalTags").innerHTML = r.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join("");
   $("#modalOpen").href = r.link || "#";
@@ -532,16 +550,19 @@ document.addEventListener("keydown", (e) => { if (e.key === "Escape") $("#modal"
 // ---- Utils -----------------------------------------------------------------
 function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
 function truncate(s, n) { return s.length > n ? s.slice(0, n-1) + "…" : s; }
+function prettyName(s) { return s.replace(/\.[a-zA-Z]{2,5}$/, "").replace(/[_-]/g, " ").trim(); }
 
 // ---- Events ----------------------------------------------------------------
 $("#q").addEventListener("input", debounce(applyFilters, 150));
 $("#filterType").addEventListener("change", applyFilters);
 $("#filterFolder").addEventListener("change", applyFilters);
+$("#filterMarket").addEventListener("change", applyFilters);
 $("#sort").addEventListener("change", applyFilters);
 $("#clear").addEventListener("click", () => {
   $("#q").value = "";
   $("#filterType").value = "";
   $("#filterFolder").value = "";
+  $("#filterMarket").value = "";
   $("#sort").value = "date_desc";
   activeTags.clear();
   renderTagChipsActive();
