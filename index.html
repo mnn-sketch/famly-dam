@@ -47,7 +47,7 @@
     display: flex; align-items: center; gap: 10px;
   }
   .brand img {
-    height: 54px; width: auto; display: block;
+    height: 24px; width: auto; display: block;
   }
   .brand-label {
     font-weight: 600; font-size: 13px; color: var(--muted); letter-spacing: 0.01em;
@@ -225,8 +225,7 @@
       <input id="q" type="search" placeholder="Search name, tag, note…" autocomplete="off" />
     </div>
     <div class="controls">
-      <select id="filterType" title="File type"><option value="">All types</option></select>
-      <select id="filterFolder" title="Folder"><option value="">All folders</option></select>
+      <select id="filterFolder" title="Category"><option value="">All categories</option></select>
       <select id="filterMarket" title="Market"><option value="">All markets</option></select>
       <select id="sort" title="Sort by">
         <option value="date_desc">Newest first</option>
@@ -365,10 +364,6 @@ function populateControls() {
       if (!META_TAGS.has(t)) tagCount.set(t, (tagCount.get(t) || 0) + 1);
     });
   });
-  const typeSel = $("#filterType");
-  [...types].sort().forEach(t => {
-    const o = document.createElement("option"); o.value = t; o.textContent = t.toUpperCase(); typeSel.appendChild(o);
-  });
   const folderSel = $("#filterFolder");
   [...folders].sort().forEach(f => {
     const o = document.createElement("option"); o.value = f; o.textContent = prettyFolder(f); folderSel.appendChild(o);
@@ -403,13 +398,11 @@ function renderTagChipsActive() {
 
 function applyFilters() {
   const q = $("#q").value.trim().toLowerCase();
-  const type = $("#filterType").value;
   const folder = $("#filterFolder").value;
   const market = $("#filterMarket").value;
   const sort = $("#sort").value;
 
   filtered = rows.filter(r => {
-    if (type && r.type !== type) return false;
     if (folder && folderOf(r.tags) !== folder) return false;
     if (market && !r.tags.includes(market)) return false;
     if (activeTags.size) {
@@ -560,13 +553,11 @@ function prettyName(s) { return s.replace(/\.[a-zA-Z]{2,5}$/, "").replace(/[_-]/
 
 // ---- Events ----------------------------------------------------------------
 $("#q").addEventListener("input", debounce(applyFilters, 150));
-$("#filterType").addEventListener("change", applyFilters);
 $("#filterFolder").addEventListener("change", applyFilters);
 $("#filterMarket").addEventListener("change", applyFilters);
 $("#sort").addEventListener("change", applyFilters);
 $("#clear").addEventListener("click", () => {
   $("#q").value = "";
-  $("#filterType").value = "";
   $("#filterFolder").value = "";
   $("#filterMarket").value = "";
   $("#sort").value = "date_desc";
