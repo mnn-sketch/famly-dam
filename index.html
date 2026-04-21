@@ -435,25 +435,44 @@ async function doSave(pat){
   showToast("Saving…");
   try{
     const fields=["name","type","tags","uploader","date","link","thumbnail","note"];
-    const esc=v=>{const s=String(v||"");return(s.includes(",")||s.includes('"')||s.includes("\n"))?'"'+s.replace(/"/g,'\"\')+'"':s;};
-    const csv=[fields.join(","),...rows.filter(r=>!r._hidden).map(r=>fields.map(f=>f==="tags"?esc(r.tags.join(", ")):esc(r[f])).join(","))].join("\n");
+    function esc(v){
+      const s=String(v||"");
+      if(s.includes(",")||s.includes('"')||s.includes("\n")){
+        return '"'+s.replace(/"/g,'""')+'"';
+      }
+      return s;
+    }
+    const csvRows=rows.filter(r=>!r._hidden).map(r=>
+      fields.map(f=>f==="tags"?esc(r.tags.join(", ")):esc(r[f])).join(",")
+    );
+    const csv=[fields.join(","),...csvRows].join("\n");
     const b64=btoa(unescape(encodeURIComponent(csv)));
-    const sR=await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${GITHUB_FILE}`,{headers:{"Authorization":`token ${pat}`,"Accept":"application/vnd.github.v3+json"}});
-    const sD=await sR.json();const sha=sD.sha||fileSha;
-    const pR=await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${GITHUB_FILE}`,{
-      method:"PUT",headers:{"Authorization":`token ${pat}`,"Accept":"application/vnd.github.v3+json","Content-Type":"application/json"},
-      body:JSON.stringify({message:"DAM: update names and tags",content:b64,sha})
+    const sR=await fetch("https://api.github.com/repos/"+GITHUB_OWNER+"/"+GITHUB_REPO+"/contents/"+GITHUB_FILE,{
+      headers:{"Authorization":"token "+pat,"Accept":"application/vnd.github.v3+json"}
+    });
+    const sD=await sR.json();
+    const sha=sD.sha||fileSha;
+    const pR=await fetch("https://api.github.com/repos/"+GITHUB_OWNER+"/"+GITHUB_REPO+"/contents/"+GITHUB_FILE,{
+      method:"PUT",
+      headers:{"Authorization":"token "+pat,"Accept":"application/vnd.github.v3+json","Content-Type":"application/json"},
+      body:JSON.stringify({message:"DAM: update names and tags",content:b64,sha:sha})
     });
     if(!pR.ok){const e=await pR.json();throw new Error(e.message||pR.status);}
-    const pD=await pR.json();fileSha=pD.content?.sha||sha;
-    dirty=false;$("#unsavedBadge").classList.remove("visible");
+    const pD=await pR.json();
+    fileSha=pD.content&&pD.content.sha?pD.content.sha:sha;
+    dirty=false;
+    $("#unsavedBadge").classList.remove("visible");
     showToast("✅ Saved! Site updates in ~60 seconds.");
   }catch(e){
-    if(e.message?.includes("401")||e.message?.includes("403")){localStorage.removeItem("gh_pat");showToast("❌ Token invalid — re-enter");openPatModal(doSave);}
-    else showToast("❌ Save failed: "+e.message);
+    if(e.message&&(e.message.includes("401")||e.message.includes("403"))){
+      localStorage.removeItem("gh_pat");
+      showToast("❌ Token invalid — re-enter");
+      openPatModal(doSave);
+    }else{
+      showToast("❌ Save failed: "+e.message);
+    }
   }
 }
-
 let toastTimer;
 function showToast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove("show"),4000);}
 
