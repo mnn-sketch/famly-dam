@@ -415,6 +415,7 @@ function populateControls() {
     const o = document.createElement("option"); o.value = m; o.textContent = marketLabels[m] || m.toUpperCase(); marketSel.appendChild(o);
   });
   // top 24 content tags (meta tags excluded)
+  renderQuickFilters();
   const top = [...tagCount.entries()].sort((a,b) => b[1]-a[1]).slice(0, 24);
   const wrap = $("#tagChips"); wrap.innerHTML = "";
   top.forEach(([t, n]) => {
@@ -503,7 +504,6 @@ function cardEl(r) {
   const dl = downloadUrl(r);
   el.innerHTML = `
     <div class="thumb-wrap">
-      ${r.type ? `<span class="badge">${r.type}</span>` : ""}
       ${dl ? `<a class="dl-btn" href="${dl}" title="Download ${escapeHtml(r.name)}" aria-label="Download" download>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v12"/><path d="m6 11 6 6 6-6"/><path d="M5 21h14"/></svg>
       </a>` : ""}
