@@ -63,16 +63,12 @@
   .pat-box .pat-actions{display:flex;gap:8px;justify-content:flex-end;}
 
   main{max-width:1400px;margin:0 auto;padding:18px 20px 80px;}
-  .type-toggle{display:flex;gap:8px;margin:0 0 20px;}
-  .type-btn{padding:9px 24px;border-radius:999px;border:1.5px solid var(--line);background:#fff;color:var(--ink);font-size:14px;font-weight:600;cursor:pointer;font-family:inherit;transition:all 120ms ease;}
-  .type-btn:hover{border-color:var(--accent);color:var(--accent);}
-  .type-btn.active{background:var(--accent);color:#fff;border-color:var(--accent);}
   .quick-chip{padding:6px 14px;border-radius:999px;background:var(--chip-bg);color:var(--chip-ink);font-size:13px;font-weight:700;cursor:pointer;user-select:none;border:1.5px solid var(--line);white-space:nowrap;transition:background 120ms ease,color 120ms ease,border-color 120ms ease;}
   .quick-chip:hover{background:var(--accent-soft);border-color:var(--accent-soft);}
   .quick-chip.active{background:var(--chip-active-bg);color:var(--chip-active-ink);border-color:var(--chip-active-bg);}
   .filters{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 18px;}
   .chip{padding:5px 11px;border-radius:999px;background:var(--chip-bg);color:var(--chip-ink);font-size:12px;cursor:pointer;user-select:none;border:1px solid transparent;white-space:nowrap;font-weight:500;transition:background 120ms ease,color 120ms ease;}
-  .chip-key{padding:7px 16px;font-size:14px;font-weight:700;border:1.5px solid transparent;}
+  .chip-key{padding:7px 16px;font-size:14px;font-weight:700;border:1.5px solid transparent;flex:1;text-align:center;min-width:100px;}
   .chip:hover{background:var(--accent-soft);}
   .chip.active{background:var(--chip-active-bg);color:var(--chip-active-ink);}
   .group-label{font-size:11px;text-transform:uppercase;letter-spacing:0.08em;color:var(--muted);margin:10px 0 4px;}
@@ -146,6 +142,11 @@
       <input id="q" type="search" placeholder="Search name, tag, note…" autocomplete="off" />
     </div>
     <div class="controls">
+      <select id="filterType" title="Type">
+        <option value="">All types</option>
+        <option value="photos">Photos</option>
+        <option value="illustrations">Illustrations</option>
+      </select>
       <select id="sort" title="Sort by">
         <option value="date_desc">Newest first</option>
         <option value="date_asc">Oldest first</option>
@@ -182,10 +183,6 @@
 </div>
 
 <main>
-  <div class="type-toggle">
-    <button class="type-btn" id="btnPhotos">Photos</button>
-    <button class="type-btn" id="btnIllustrations">Illustrations</button>
-  </div>
   <div id="tagsWrap">
     <div class="group-label">Tags</div>
     <div id="tagChips" class="filters"></div>
@@ -269,14 +266,19 @@ function populateControls(){
   });
   const top=[...tagCount.entries()].sort((a,b)=>b[1]-a[1]).slice(0,24);
   const wrap=$("#tagChips");wrap.innerHTML="";
-  // Render key tags first (larger, bolder)
+  // Key tags row — full width with counts
+  const keyRow=document.createElement("div");
+  keyRow.style.cssText="display:flex;flex-wrap:wrap;gap:8px;width:100%;margin-bottom:10px;";
   QUICK_FILTERS.forEach(({label,tag})=>{
+    const count=tagCount.get(tag)||0;
     const c=document.createElement("div");
     c.className="chip chip-key"+(activeTags.has(tag)?" active":"");
-    c.textContent=label;c.dataset.tag=tag;
+    c.textContent=count?label+" · "+count:label;
+    c.dataset.tag=tag;
     c.addEventListener("click",()=>toggleTag(tag));
-    wrap.appendChild(c);
+    keyRow.appendChild(c);
   });
+  wrap.appendChild(keyRow);
   // Then regular top tags
   top.forEach(([t,n])=>{
     if(QUICK_FILTERS.some(q=>q.tag===t))return; // skip if already shown as key tag
@@ -480,21 +482,10 @@ function showToast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("s
 
 $("#q").addEventListener("input",debounce(applyFilters,150));
 $("#sort").addEventListener("change",applyFilters);
-$("#clear").addEventListener("click",()=>{$("#q").value="";$("#sort").value="date_desc";typeFilter="";$$(".type-btn").forEach(b=>b.classList.remove("active"));activeTags.clear();renderTagChipsActive();applyFilters();});
+$("#clear").addEventListener("click",()=>{$("#q").value="";$("#sort").value="date_desc";$("#filterType").value="";typeFilter="";activeTags.clear();renderTagChipsActive();applyFilters();});
 $("#viewGrid").addEventListener("click",()=>{view="grid";$("#viewGrid").classList.add("on");$("#viewList").classList.remove("on");render();});
 $("#viewList").addEventListener("click",()=>{view="list";$("#viewList").classList.add("on");$("#viewGrid").classList.remove("on");render();});
-$("#btnPhotos").addEventListener("click",()=>{
-  typeFilter=typeFilter==="photos"?"":"photos";
-  $("#btnPhotos").classList.toggle("active",typeFilter==="photos");
-  $("#btnIllustrations").classList.remove("active");
-  applyFilters();
-});
-$("#btnIllustrations").addEventListener("click",()=>{
-  typeFilter=typeFilter==="illustrations"?"":"illustrations";
-  $("#btnIllustrations").classList.toggle("active",typeFilter==="illustrations");
-  $("#btnPhotos").classList.remove("active");
-  applyFilters();
-});
+$("#filterType").addEventListener("change",()=>{typeFilter=$("#filterType").value;applyFilters();});
 function debounce(fn,ms){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};}
 
 init();
