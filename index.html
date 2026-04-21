@@ -209,8 +209,6 @@
 
 <script>
 const GITHUB_OWNER="mnn-sketch",GITHUB_REPO="famly-dam",GITHUB_FILE="image_bank_index.csv";
-const CSV_URL=`https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/main/${GITHUB_FILE}`;
-
 let rows=[],filtered=[],activeTags=new Set(),view="grid",editMode=false,dirty=false,fileSha="";
 const $=s=>document.querySelector(s);
 const $$=s=>document.querySelectorAll(s);
@@ -219,9 +217,10 @@ async function init(){
   $("#result").innerHTML=`<div class="state"><h2>Loading image bank…</h2><p>Fetching assets</p></div>`;
   try{
     const apiR=await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${GITHUB_FILE}`);
-    const apiD=await apiR.json(); fileSha=apiD.sha||"";
-    const csvR=await fetch(CSV_URL+"?t="+Date.now());
-    const csvT=await csvR.text();
+    const apiD=await apiR.json();
+    fileSha=apiD.sha||"";
+    // Decode base64 content from GitHub API (avoids CORS issues with raw.githubusercontent.com)
+    const csvT=decodeURIComponent(escape(atob(apiD.content.replace(/\n/g,""))));
     const parsed=Papa.parse(csvT,{header:true,skipEmptyLines:true});
     if(!parsed.data||!parsed.data.length) throw new Error("empty");
     rows=parsed.data.filter(r=>r&&(r.name||r.link)).map((r,i)=>({
