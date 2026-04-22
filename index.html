@@ -241,6 +241,7 @@
     Copy share links
   </button>
   <span class="clear-sel" id="btnClearSel">Clear selection</span>
+  <span style="font-size:11px;color:rgba(255,255,255,0.35);margin-left:8px;">Zip download limited to 1600px</span>
 </div>
 
 <script>
@@ -565,15 +566,14 @@ $("#btnDownloadZip").addEventListener("click",async()=>{
     const total=selectedRows.size;
     for(const r of selectedRows){
       try{
-        const id=driveIdFrom(r);
-        if(!id){done++;continue;}
-        const url="https://drive.google.com/uc?export=download&id="+id;
+        if(!r.thumbnail){done++;continue;}
+        const url=r.thumbnail.replace(/sz=w\d+/,"sz=w1600");
         const resp=await fetch(url);
         if(!resp.ok)throw new Error(resp.status);
         const blob=await resp.blob();
         const ext=r.type||"jpg";
-        const name=prettyName(r.name).replace(/[^a-zA-Z0-9 –-]/g,"").trim()+"."+ext;
-        zip.file(name,blob);
+        const safeName=prettyName(r.name).replace(/[^a-zA-Z0-9 –-]/g,"").trim()+"."+ext;
+        zip.file(safeName,blob);
         done++;
         showToast("Downloading "+done+"/"+total+"…");
       }catch(e){done++;console.warn("skip",r.name,e);}
