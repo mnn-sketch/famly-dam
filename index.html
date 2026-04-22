@@ -355,9 +355,9 @@ function prettyName(s){return s.replace(/\.[a-zA-Z]{2,5}$/,"").trim();}
 function folderLabel(f){return FOLDERS.find(x=>x.id===f)?.label||f;}
 function folderOf(tags){return tags.find(t=>FOLDER_IDS.has(t))||"";}
 function typeOf(r){
-  if(r.tags.includes("illustrations")||r.name.toLowerCase().startsWith("illustration"))return"illustration";
-  const vid=["mp4","mov","avi","webm","mkv"];
-  if(vid.includes(r.type))return"video";
+  const t=r.type.toLowerCase();
+  if(["mp4","mov"].includes(t))return"video";
+  if(r.name.startsWith("Illustration"))return"illustration";
   return"photo";
 }
 function driveId(r){const m=(r.link||"").match(/\/d\/([A-Za-z0-9_-]{20,})/)||(r.thumbnail||"").match(/[?&]id=([A-Za-z0-9_-]{20,})/);return m?m[1]:"";}
