@@ -460,6 +460,13 @@ function updateFolderBtns(){
   });
 }
 
+$$("[data-type]").forEach(btn=>{
+  btn.addEventListener("click",()=>{
+    activeType=btn.dataset.type;
+    $$("[data-type]").forEach(b=>b.classList.toggle("active",b.dataset.type===activeType));
+    applyFilters();
+  });
+});
 $$("[data-folder]").forEach(btn=>{
   btn.addEventListener("click",()=>{activeFolder=btn.dataset.folder;activeCollId=null;updateFolderBtns();renderCollList();applyFilters();});
 });
