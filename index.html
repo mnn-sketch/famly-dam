@@ -197,7 +197,7 @@ button{font-family:inherit;cursor:pointer;}
 <div id="app">
 <header id="topbar">
   <div class="brand">
-    <img src="famly-logo-dark.png" alt="Famly" />
+    <img src="Famly_Logomark_BrandPurple.png" alt="Famly" style="height:36px;width:auto;" />
     <span class="brand-label">Image Bank</span>
   </div>
   <div class="search-wrap">
@@ -293,6 +293,7 @@ button{font-family:inherit;cursor:pointer;}
     <div class="drawer-title" id="drawer-name"></div>
     <div class="drawer-actions">
       <a class="btn-primary" id="drawer-open" target="_blank" rel="noopener"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/></svg> Open in Drive</a>
+      <a class="btn-ghost" id="drawer-download" href="#" download><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v12"/><path d="m6 11 6 6 6-6"/><path d="M5 21h14"/></svg> Download</a>
       <button class="btn-ghost" id="drawer-copy"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> Copy link</button>
     </div>
     <dl class="drawer-meta" id="drawer-meta"></dl>
@@ -522,6 +523,7 @@ function makeCard(r){
   el.innerHTML=`
     <div class="thumb">
       ${!editMode?`<div class="card-check"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>`:""}
+      ${!editMode&&driveId(r)?`<a class="card-dl" href="https://drive.google.com/uc?export=download&id=${driveId(r)}" title="Download" download><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v12"/><path d="m6 11 6 6 6-6"/><path d="M5 21h14"/></svg></a>`:""}
       ${editMode?`<button class="card-hide">${r._hidden?"👁":"🚫"}</button>`:""}
       ${r.thumbnail?`<img loading="lazy" referrerpolicy="no-referrer" src="${r.thumbnail}" alt="" onerror="this.style.display='none'" />`:`<div class="fallback">no preview</div>`}
       ${!editMode?`<div class="tag-peek">${tagPeek}</div>`:""}
@@ -534,6 +536,7 @@ function makeCard(r){
     </div>`;
   if(!editMode){
     el.querySelector(".card-check")?.addEventListener("click",e=>{e.stopPropagation();toggleSelect(r,el);});
+    el.querySelector(".card-dl")?.addEventListener("click",e=>e.stopPropagation());
     el.addEventListener("click",()=>{if(selectedRows.size>0){toggleSelect(r,el);}else{openDrawer(r);}});
   }else{
     const ni=el.querySelector(".card-name-input");
@@ -623,6 +626,10 @@ function openDrawer(r){
   $("#drawer-img").src=r.thumbnail?r.thumbnail.replace(/sz=w\d+/,"sz=w1200"):"";
   $("#drawer-name").textContent=prettyName(r.name);
   $("#drawer-open").href=r.link||"#";
+  const did=driveId(r);
+  const dlEl=$("#drawer-download");
+  if(did){dlEl.href="https://drive.google.com/uc?export=download&id="+did;dlEl.style.display="";}
+  else{dlEl.style.display="none";}
   $("#drawer-copy").onclick=()=>{navigator.clipboard.writeText(r.link||"").then(()=>{$("#drawer-copy").textContent="Copied!";setTimeout(()=>{$("#drawer-copy").innerHTML=`<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg> Copy link`;},1500);});};
   const meta=[];
   if(r.date)meta.push(["Date",r.date]);
