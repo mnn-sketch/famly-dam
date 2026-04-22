@@ -230,6 +230,14 @@ button{font-family:inherit;cursor:pointer;}
     </div>
     <div class="side-divider"></div>
     <div class="side-section">
+      <div class="side-label">Type</div>
+      <button class="folder-item active" data-type=""><span class="folder-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span><span style="flex:1">All types</span><span class="folder-count" id="cnt-type-all">—</span></button>
+      <button class="folder-item" data-type="photo"><span class="folder-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="1.5"/><path d="m21 15-5-5L5 21"/></svg></span><span style="flex:1">Photo</span><span class="folder-count" id="cnt-type-photo">—</span></button>
+      <button class="folder-item" data-type="illustration"><span class="folder-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg></span><span style="flex:1">Illustration</span><span class="folder-count" id="cnt-type-illustration">—</span></button>
+      <button class="folder-item" data-type="video"><span class="folder-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg></span><span style="flex:1">Video</span><span class="folder-count" id="cnt-type-video">—</span></button>
+    </div>
+    <div class="side-divider"></div>
+    <div class="side-section">
       <div class="side-label-row">
         <div class="side-label" style="padding:0">Collections</div>
         <button class="side-add-btn" id="new-coll-btn" title="New collection"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
@@ -319,7 +327,7 @@ button{font-family:inherit;cursor:pointer;}
 <script>
 const GITHUB_OWNER="mnn-sketch",GITHUB_REPO="famly-dam",GITHUB_FILE="image_bank_index.csv";
 let rows=[],filtered=[],view="grid",editMode=false,dirty=false,fileSha="";
-let activeFolder="",activeCollId=null,activeTags=new Set(),query="";
+let activeFolder="",activeCollId=null,activeTags=new Set(),query="",activeType="";
 let selectedRows=new Set(),saveMenuOpen=false;
 const $=s=>document.querySelector(s);
 const $$=s=>document.querySelectorAll(s);
@@ -346,6 +354,12 @@ function esc(s){return String(s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&l
 function prettyName(s){return s.replace(/\.[a-zA-Z]{2,5}$/,"").trim();}
 function folderLabel(f){return FOLDERS.find(x=>x.id===f)?.label||f;}
 function folderOf(tags){return tags.find(t=>FOLDER_IDS.has(t))||"";}
+function typeOf(r){
+  if(r.tags.includes("illustrations")||r.name.toLowerCase().startsWith("illustration"))return"illustration";
+  const vid=["mp4","mov","avi","webm","mkv"];
+  if(vid.includes(r.type))return"video";
+  return"photo";
+}
 function driveId(r){const m=(r.link||"").match(/\/d\/([A-Za-z0-9_-]{20,})/)||(r.thumbnail||"").match(/[?&]id=([A-Za-z0-9_-]{20,})/);return m?m[1]:"";}
 function relDate(s){const d=new Date(s);if(isNaN(d))return s;const days=Math.floor((Date.now()-d)/86400000);if(days<1)return"Today";if(days<7)return days+"d ago";if(days<30)return Math.floor(days/7)+"w ago";if(days<365)return Math.floor(days/30)+"mo ago";return Math.floor(days/365)+"y ago";}
 
@@ -468,6 +482,14 @@ async function init(){
     const all=rows.length;
     $("#cnt-all").textContent=all;
     FOLDERS.forEach(f=>{const el=document.getElementById("cnt-"+f.id);if(el)el.textContent=rows.filter(r=>r.tags.includes(f.id)).length;});
+    // Type counts
+    const photoC=rows.filter(r=>typeOf(r)==="photo").length;
+    const illustC=rows.filter(r=>typeOf(r)==="illustration").length;
+    const videoC=rows.filter(r=>typeOf(r)==="video").length;
+    const cta=document.getElementById("cnt-type-all");if(cta)cta.textContent=rows.length;
+    const ctp=document.getElementById("cnt-type-photo");if(ctp)ctp.textContent=photoC;
+    const cti=document.getElementById("cnt-type-illustration");if(cti)cti.textContent=illustC;
+    const ctv=document.getElementById("cnt-type-video");if(ctv)ctv.textContent=videoC;
     renderFilterGroups();renderCollList();applyFilters();
   }catch(e){$("#result").innerHTML=`<div class="state"><h2>Couldn't load assets</h2><p>${e.message}</p></div>`;}
 }
@@ -479,6 +501,9 @@ function applyFilters(){
   filtered=rows.filter(r=>{
     if(r._hidden&&!editMode)return false;
     if(collLinks&&!collLinks.has(r.link))return false;
+    if(activeType==="illustration"&&typeOf(r)!=="illustration")return false;
+    if(activeType==="photo"&&typeOf(r)!=="photo")return false;
+    if(activeType==="video"&&typeOf(r)!=="video")return false;
     if(activeFolder&&!r.tags.includes(activeFolder))return false;
     if(activeTags.size){for(const t of activeTags)if(!r.tags.includes(t))return false;}
     if(query){const hay=(r.name+" "+r.note+" "+r.tags.join(" ")).toLowerCase();if(!hay.includes(query))return false;}
@@ -668,7 +693,7 @@ async function doSave(pat){
   }catch(e){if(e.message?.includes("401")||e.message?.includes("403")){localStorage.removeItem("gh_pat");showToast("❌ Token invalid");openPat(doSave);}else showToast("❌ Save failed: "+e.message);}
 }
 
-function clearAllFilters(){activeTags.clear();query="";activeFolder="";activeCollId=null;$("#search").value="";$("#search-clear").style.display="none";updateFolderBtns();renderCollList();renderFilterGroups();applyFilters();updateFilterSummary();}
+function clearAllFilters(){activeTags.clear();query="";activeFolder="";activeCollId=null;activeType="";$$('[data-type]').forEach(b=>b.classList.toggle('active',b.dataset.type===""));$("#search").value="";$("#search-clear").style.display="none";updateFolderBtns();renderCollList();renderFilterGroups();applyFilters();updateFilterSummary();}
 
 let sTimer;
 $("#search").addEventListener("input",()=>{query=$("#search").value.trim().toLowerCase();$("#search-clear").style.display=query?"":"none";clearTimeout(sTimer);sTimer=setTimeout(()=>{applyFilters();updateFilterSummary();},150);});
