@@ -88,7 +88,7 @@
   .dl-btn svg{width:16px;height:16px;}
   .hide-btn{position:absolute;top:8px;right:8px;width:28px;height:28px;border-radius:50%;background:rgba(44,41,37,0.78);color:#fff;border:0;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;}
   .hide-btn:hover{background:#e53e3e;}
-  .card-body{padding:10px 12px 12px;display:flex;flex-direction:column;gap:6px;min-height:70px;}
+  .card-body{padding:10px 12px 12px;display:flex;flex-direction:column;gap:4px;}
   .name{font-size:13px;font-weight:500;line-height:1.3;word-break:break-word;}
   .name-input{font-size:13px;font-weight:500;border:1px solid var(--accent);border-radius:6px;padding:4px 8px;font-family:inherit;outline:none;width:100%;background:#fff;}
   .meta{font-size:11px;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap;}
@@ -130,9 +130,11 @@
   .card.selected .card-check{display:flex;background:var(--accent);border-color:var(--accent);}
   .card-check svg{width:13px;height:13px;stroke:#fff;stroke-width:3;fill:none;display:none;}
   .card.selected .card-check svg{display:block;}
-  /* Tags hidden until hover */
-  .card .tags{opacity:0;transition:opacity 120ms ease;}
-  .card:hover .tags,.card.selected .tags{opacity:1;}
+  /* Tags overlay on image */
+  .card .tags{display:none;}
+  .thumb-tags{position:absolute;bottom:8px;left:8px;right:44px;display:flex;flex-wrap:wrap;gap:4px;opacity:0;transition:opacity 140ms ease;}
+  .card:hover .thumb-tags,.card.selected .thumb-tags{opacity:1;}
+  .thumb-tag{font-size:10px;padding:2px 7px;border-radius:6px;background:rgba(44,41,37,0.75);color:#fff;white-space:nowrap;}
   /* Action bar */
   .action-bar{position:fixed;bottom:0;left:0;right:0;background:#1a1a1a;color:#fff;padding:14px 24px;display:flex;align-items:center;gap:12px;z-index:50;transform:translateY(100%);transition:transform 220ms ease;flex-wrap:wrap;}
   .action-bar.visible{transform:translateY(0);}
@@ -365,16 +367,20 @@ function cardEl(r){
   el.className="card"+(editMode?" edit-mode":"")+(r._hidden?" hidden-card":"");
   const dl=downloadUrl(r);
   const tagsHtml=r.tags.slice(0,6).map(t=>`<span class="tag${editMode?" removable":""}" data-tag="${escapeHtml(t)}">${escapeHtml(t)}</span>`).join("");
+  const thumbTagsHtml=!editMode?r.tags.slice(0,3).map(t=>`<span class="thumb-tag">${escapeHtml(t)}</span>`).join(""):"";
+  const folder=folderOf(r.tags);
+  const folderLabel=folder?prettyFolder(folder):"";
   el.innerHTML=`
     <div class="thumb-wrap">
       ${!editMode?`<div class="card-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>`:""}
       ${!editMode&&dl?`<a class="dl-btn" href="${dl}" aria-label="Download" download><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v12"/><path d="m6 11 6 6 6-6"/><path d="M5 21h14"/></svg></a>`:""}
       ${editMode?`<button class="hide-btn" title="${r._hidden?"Show":"Hide"}">${r._hidden?"👁":"🚫"}</button>`:""}
       ${r.thumbnail?`<img loading="lazy" referrerpolicy="no-referrer" src="${r.thumbnail}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'fallback',textContent:'no preview'}))" />`:`<div class="fallback">no preview</div>`}
+      ${!editMode&&thumbTagsHtml?`<div class="thumb-tags">${thumbTagsHtml}</div>`:""}
     </div>
     <div class="card-body">
       ${editMode?`<input class="name-input" value="${escapeHtml(r.name)}" />`:`<div class="name" title="${escapeHtml(r.name)}">${escapeHtml(truncate(prettyName(r.name),70))}</div>`}
-      <div class="meta">${r.date?`<span>${r.date}</span>`:""}</div>
+      ${folderLabel&&!editMode?`<div class="meta"><span>${folderLabel}</span></div>`:""}
       <div class="tags">${tagsHtml}</div>
       ${editMode?`<div class="tag-add"><input class="tag-input" placeholder="add tag…" maxlength="30" /><button class="tag-add-btn">+</button></div>`:""}
     </div>`;
