@@ -190,7 +190,21 @@ button{font-family:inherit;cursor:pointer;}
 .pat-actions{display:flex;gap:8px;justify-content:flex-end;}
 #toast{position:fixed;bottom:80px;right:24px;background:#2c2925;color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;font-weight:500;opacity:0;transform:translateY(6px);transition:opacity 200ms,transform 200ms;z-index:300;pointer-events:none;}
 #toast.show{opacity:1;transform:translateY(0);}
-@media(max-width:768px){#sidebar{display:none;}#main-scroll{padding:16px 16px 120px;}.list-head,.list-row{grid-template-columns:28px 48px 1fr 36px;}.list-head div:nth-child(4),.list-head div:nth-child(5),.list-head div:nth-child(6),.list-row div:nth-child(4),.list-row div:nth-child(5),.list-row div:nth-child(6){display:none;}}
+.play-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.25);pointer-events:none;}
+.play-btn-icon{width:44px;height:44px;border-radius:50%;background:rgba(255,255,255,.92);display:flex;align-items:center;justify-content:center;}
+.play-btn-icon svg{margin-left:3px;}
+/* Mobile sidebar */
+#sidebar-toggle{display:none;position:fixed;left:0;top:50%;transform:translateY(-50%);z-index:80;background:#5423ce;color:#fff;border:0;border-radius:0 8px 8px 0;padding:10px 6px;cursor:pointer;box-shadow:2px 0 8px rgba(0,0,0,.15);}
+#sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:88;}
+@media(max-width:768px){
+  #sidebar-toggle{display:flex;align-items:center;}
+  #sidebar{display:none;position:fixed;left:0;top:0;bottom:0;z-index:90;box-shadow:4px 0 20px rgba(0,0,0,.2);}
+  #sidebar.mobile-open{display:flex;}
+  #main-scroll{padding:16px 16px 120px;}
+  .list-head,.list-row{grid-template-columns:28px 48px 1fr 36px;}
+  .list-head div:nth-child(4),.list-head div:nth-child(5),.list-head div:nth-child(6),
+  .list-row div:nth-child(4),.list-row div:nth-child(5),.list-row div:nth-child(6){display:none;}
+}
 </style>
 </head>
 <body>
@@ -323,6 +337,10 @@ button{font-family:inherit;cursor:pointer;}
 </div>
 
 <div id="toast"></div>
+<button id="sidebar-toggle" title="Open filters">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg>
+</button>
+<div id="sidebar-overlay"></div>
 
 <script>
 const GITHUB_OWNER="mnn-sketch",GITHUB_REPO="famly-dam",GITHUB_FILE="image_bank_index.csv";
@@ -558,6 +576,7 @@ function makeCard(r){
       ${!editMode&&driveId(r)?`<a class="card-dl" href="https://drive.google.com/uc?export=download&id=${driveId(r)}" title="Download" download><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v12"/><path d="m6 11 6 6 6-6"/><path d="M5 21h14"/></svg></a>`:""}
       ${editMode?`<button class="card-hide">${r._hidden?"👁":"🚫"}</button>`:""}
       ${r.thumbnail?`<img loading="lazy" referrerpolicy="no-referrer" src="${r.thumbnail}" alt="" onerror="this.style.display='none'" />`:`<div class="fallback">no preview</div>`}
+      ${!editMode&&typeOf(r)==="video"?`<div class="play-overlay"><div class="play-btn-icon"><svg width="18" height="18" viewBox="0 0 24 24" fill="#5423ce" stroke="none"><polygon points="5 3 19 12 5 21 5 3"/></svg></div></div>`:""}
       ${!editMode?`<div class="tag-peek">${tagPeek}</div>`:""}
     </div>
     <div class="card-body">
@@ -711,6 +730,15 @@ $("#view-list").addEventListener("click",()=>{view="list";$("#view-list").classL
 
 let toastTimer;
 function showToast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove("show"),4000);}
+
+// Mobile sidebar
+const sidebarToggle=$("#sidebar-toggle");
+const sidebarOverlay=$("#sidebar-overlay");
+const sidebar=$("#sidebar");
+function openSidebar(){sidebar.classList.add("mobile-open");sidebarOverlay.style.display="block";sidebarToggle.innerHTML=`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m15 18-6-6 6-6"/></svg>`;}
+function closeSidebar(){sidebar.classList.remove("mobile-open");sidebarOverlay.style.display="none";sidebarToggle.innerHTML=`<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg>`;}
+sidebarToggle.addEventListener("click",()=>sidebar.classList.contains("mobile-open")?closeSidebar():openSidebar());
+sidebarOverlay.addEventListener("click",closeSidebar);
 
 init();
 </script>
