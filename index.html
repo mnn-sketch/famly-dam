@@ -123,6 +123,25 @@
   .modal .info h3{margin:0 0 6px;font-size:16px;word-break:break-word;}
   .modal .info .meta{margin-bottom:8px;}
   .modal .actions{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;}
+  /* Selection */
+  .card.selected{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft);}
+  .card-check{position:absolute;top:8px;left:8px;width:22px;height:22px;border-radius:6px;background:rgba(255,255,255,0.9);border:2px solid rgba(255,255,255,0.9);cursor:pointer;display:none;align-items:center;justify-content:center;transition:background 120ms,border-color 120ms;}
+  .card:hover .card-check{display:flex;}
+  .card.selected .card-check{display:flex;background:var(--accent);border-color:var(--accent);}
+  .card-check svg{width:13px;height:13px;stroke:#fff;stroke-width:3;fill:none;display:none;}
+  .card.selected .card-check svg{display:block;}
+  /* Tags hidden until hover */
+  .card .tags{opacity:0;transition:opacity 120ms ease;}
+  .card:hover .tags,.card.selected .tags{opacity:1;}
+  /* Action bar */
+  .action-bar{position:fixed;bottom:0;left:0;right:0;background:#1a1a1a;color:#fff;padding:14px 24px;display:flex;align-items:center;gap:12px;z-index:50;transform:translateY(100%);transition:transform 220ms ease;flex-wrap:wrap;}
+  .action-bar.visible{transform:translateY(0);}
+  .action-bar .sel-count{background:var(--accent);color:#fff;font-weight:700;font-size:13px;padding:4px 12px;border-radius:999px;margin-right:4px;}
+  .action-bar .sel-label{font-size:13px;color:rgba(255,255,255,0.7);margin-right:8px;}
+  .action-bar button{background:transparent;border:1px solid rgba(255,255,255,0.25);color:#fff;padding:8px 16px;border-radius:10px;font-size:13px;cursor:pointer;font-family:inherit;font-weight:500;display:flex;align-items:center;gap:6px;transition:background 120ms,border-color 120ms;}
+  .action-bar button:hover{background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.5);}
+  .action-bar .clear-sel{margin-left:auto;background:transparent;border:none;color:rgba(255,255,255,0.5);cursor:pointer;font-size:13px;font-family:inherit;padding:4px;}
+  .action-bar .clear-sel:hover{color:#fff;}
   .toast{position:fixed;bottom:24px;right:24px;background:#2c2925;color:#fff;padding:12px 20px;border-radius:10px;font-size:13px;font-weight:500;opacity:0;transform:translateY(8px);transition:opacity 200ms,transform 200ms;z-index:300;pointer-events:none;}
   .toast.show{opacity:1;transform:translateY(0);}
   @media(max-width:700px){.list .row{grid-template-columns:48px 1fr 90px;}.list .row .meta,.list .row .date{display:none;}}
@@ -208,10 +227,23 @@
 </div>
 
 <div class="toast" id="toast"></div>
+<div class="action-bar" id="actionBar">
+  <span class="sel-count" id="selCount">0</span>
+  <span class="sel-label">selected</span>
+  <button id="btnDownloadZip">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M12 5v12"/><path d="m6 11 6 6 6-6"/><path d="M5 21h14"/></svg>
+    Download as zip
+  </button>
+  <button id="btnCopyLinks">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+    Copy share links
+  </button>
+  <span class="clear-sel" id="btnClearSel">Clear selection</span>
+</div>
 
 <script>
 const GITHUB_OWNER="mnn-sketch",GITHUB_REPO="famly-dam",GITHUB_FILE="image_bank_index.csv";
-let rows=[],filtered=[],activeTags=new Set(),view="grid",editMode=false,dirty=false,fileSha="",typeFilter="";
+let rows=[],filtered=[],activeTags=new Set(),view="grid",editMode=false,dirty=false,fileSha="",typeFilter="",selectedRows=new Set();
 const $=s=>document.querySelector(s);
 const $$=s=>document.querySelectorAll(s);
 
@@ -335,6 +367,7 @@ function cardEl(r){
   const tagsHtml=r.tags.slice(0,6).map(t=>`<span class="tag${editMode?" removable":""}" data-tag="${escapeHtml(t)}">${escapeHtml(t)}</span>`).join("");
   el.innerHTML=`
     <div class="thumb-wrap">
+      ${!editMode?`<div class="card-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>`:""}
       ${!editMode&&dl?`<a class="dl-btn" href="${dl}" aria-label="Download" download><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v12"/><path d="m6 11 6 6 6-6"/><path d="M5 21h14"/></svg></a>`:""}
       ${editMode?`<button class="hide-btn" title="${r._hidden?"Show":"Hide"}">${r._hidden?"👁":"🚫"}</button>`:""}
       ${r.thumbnail?`<img loading="lazy" referrerpolicy="no-referrer" src="${r.thumbnail}" alt="" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'fallback',textContent:'no preview'}))" />`:`<div class="fallback">no preview</div>`}
@@ -351,6 +384,11 @@ function cardEl(r){
       if(e.target.closest(".dl-btn")){e.stopPropagation();return;}
       const t=e.target.closest(".tag");
       if(t){e.stopPropagation();toggleTag(t.dataset.tag);return;}
+      if(e.target.closest(".card-check")||selectedRows.size>0){
+        e.stopPropagation();
+        toggleSelect(r,el);
+        return;
+      }
       openModal(r);
     });
     return el;
@@ -486,6 +524,63 @@ $("#clear").addEventListener("click",()=>{$("#q").value="";$("#sort").value="dat
 $("#viewGrid").addEventListener("click",()=>{view="grid";$("#viewGrid").classList.add("on");$("#viewList").classList.remove("on");render();});
 $("#viewList").addEventListener("click",()=>{view="list";$("#viewList").classList.add("on");$("#viewGrid").classList.remove("on");render();});
 $("#filterType").addEventListener("change",()=>{typeFilter=$("#filterType").value;applyFilters();});
+function toggleSelect(r,el){
+  if(selectedRows.has(r)){selectedRows.delete(r);}else{selectedRows.add(r);}
+  el.classList.toggle("selected",selectedRows.has(r));
+  updateActionBar();
+}
+function updateActionBar(){
+  const n=selectedRows.size;
+  $("#selCount").textContent=n;
+  $("#actionBar").classList.toggle("visible",n>0);
+}
+function clearSelection(){
+  selectedRows.clear();
+  $$(".card.selected").forEach(c=>c.classList.remove("selected"));
+  updateActionBar();
+}
+$("#btnClearSel").addEventListener("click",clearSelection);
+
+$("#btnCopyLinks").addEventListener("click",()=>{
+  const links=[...selectedRows].map(r=>r.link).filter(Boolean).join("\n");
+  navigator.clipboard.writeText(links).then(()=>showToast("✅ "+selectedRows.size+" links copied!"));
+});
+
+$("#btnDownloadZip").addEventListener("click",async()=>{
+  if(!selectedRows.size)return;
+  showToast("Preparing zip…");
+  try{
+    const script=document.createElement("script");
+    script.src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
+    document.head.appendChild(script);
+    await new Promise(r=>script.onload=r);
+    const zip=new JSZip();
+    let done=0;
+    const total=selectedRows.size;
+    for(const r of selectedRows){
+      try{
+        const id=driveIdFrom(r);
+        if(!id){done++;continue;}
+        const url="https://drive.google.com/uc?export=download&id="+id;
+        const resp=await fetch(url);
+        if(!resp.ok)throw new Error(resp.status);
+        const blob=await resp.blob();
+        const ext=r.type||"jpg";
+        const name=prettyName(r.name).replace(/[^a-zA-Z0-9 –-]/g,"").trim()+"."+ext;
+        zip.file(name,blob);
+        done++;
+        showToast("Downloading "+done+"/"+total+"…");
+      }catch(e){done++;console.warn("skip",r.name,e);}
+    }
+    const blob=await zip.generateAsync({type:"blob"});
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download="famly-assets.zip";
+    a.click();
+    showToast("✅ Downloaded "+done+" images!");
+  }catch(e){showToast("❌ Zip failed: "+e.message);}
+});
+
 function debounce(fn,ms){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms);};}
 
 init();
